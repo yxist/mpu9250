@@ -238,6 +238,19 @@ where
         })
     }
 
+    /// Turn off dlpf to achieve max sampling rate
+    pub fn turn_off_dlpf(&mut self) -> Result<(), E> {
+        let mut accel_config2 = self.read(Register::ACCEL_CONFIG_2)?;
+        accel_config2 |= 0x08;
+        self.write(Register::ACCEL_CONFIG_2, accel_config2)?;
+
+        let mut gyro_config = self.read(Register::GYRO_CONFIG)?;
+        gyro_config |= 0x03;
+        self.write(Register::GYRO_CONFIG, gyro_config)?;
+
+        Ok(())
+    }
+
     /// Applies a digital low pass filter to the accelerometer data
     pub fn a_filter(&mut self, dlpf: Dlpf) -> Result<(), E> {
         self.write(Register::ACCEL_CONFIG_2, dlpf as u8)?;
