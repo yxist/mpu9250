@@ -173,6 +173,11 @@ where
         new(spi, ncs, delay)
     }
 
+    /// to skip initialization if we changed SPI clock to 20mhz
+    pub fn marg_noinit(spi: SPI, ncs: NCS) -> Result<Self, E> {
+        Ok(Mpu9250{ spi, ncs, _mode: PhantomData })
+    }
+
     /// Reads the AK8963 (magnetometer) WHO_AM_I register; should return `0x48`
     pub fn ak8963_who_am_i(&mut self) -> Result<u8, E> {
         self.ak8963_read(ak8963::Register::WIA)
@@ -249,6 +254,27 @@ where
         self.write(Register::GYRO_CONFIG, gyro_config)?;
 
         Ok(())
+    }
+
+    /// Enable outputting to the fifo
+    pub fn enable_fifo(&mut self) -> Result<(), E> {
+        self.write(Register::FIFO_EN, 0b11111000)?;
+        let mut user_ctrl = self.read(Register::USER_CTRL)?;
+        user_ctrl |= 0x40;
+        self.write(Register::USER_CTRL, user_ctrl)?;
+
+        Ok(())
+    }
+
+    /// Read number of bytes in fifo
+    pub fn read_fifo_count(&mut self) -> Result<u16, E> {
+        let buffer = self.read_many::<U3>(Register::FIFO_COUNT_H)?;
+        Ok((u16(buffer[1]) << 8 + u16(buffer[2])) as u16)
+    }
+
+    /// Read byte from fifo
+    pub fn read_fifo(&mut self) -> Result<u8, E> {
+        self.read(Register::FIFO_R_W)
     }
 
     /// Applies a digital low pass filter to the accelerometer data
@@ -424,6 +450,9 @@ enum Register {
     EXT_SENS_DATA_02 = 0x4b,
     EXT_SENS_DATA_03 = 0x4c,
     EXT_SENS_DATA_04 = 0x4d,
+    FIFO_EN = 0x23,
+    FIFO_COUNT_H = 0x72,
+    FIFO_R_W = 0x74,
     GYRO_CONFIG = 0x1b,
     GYRO_XOUT_H = 0x43,
     I2C_MST_CTRL = 0x24,
